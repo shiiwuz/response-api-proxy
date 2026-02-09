@@ -66,11 +66,23 @@ def main() -> int:
         "content-type": "application/json",
     }
 
+    # Responses API accepts a string in some implementations, but many
+    # OpenAI-compatible proxies expect a structured list.
     body = {
         "model": args.model,
-        "input": args.text,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": args.text,
+                    }
+                ],
+            }
+        ],
         "max_output_tokens": args.max_output,
-        # keep non-streaming for simplest test
+        # keep non-streaming for simplest smoke test
         "stream": False,
     }
 
