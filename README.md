@@ -32,7 +32,13 @@ uv run rap-proxy --host 0.0.0.0 --port 8080
 
 Then point your client at the proxy:
 - Base URL: `http://127.0.0.1:8080`
-- Endpoint: `POST /openai/v1/response` (rewritten upstream to `/v1/responses`)
+- Endpoint: `POST /openai/v1/response` (rewritten upstream; default `/v1/responses`)
+
+If your upstream uses a custom path, set:
+
+```bash
+export RAP_UPSTREAM_RESPONSES_PATH="/openai/response"
+```
 
 ## What gets logged
 

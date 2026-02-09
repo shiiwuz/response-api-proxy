@@ -42,6 +42,9 @@ def _looks_like_sse_response(headers: dict[str, str]) -> bool:
 class ProxyServer:
     def __init__(self) -> None:
         self.upstream_base_url = os.getenv("RAP_UPSTREAM_BASE_URL", "https://api.openai.com").rstrip("/")
+        # Where this proxy should send Responses API calls upstream.
+        # This lets you proxy non-standard upstream routes (eg /openai/response).
+        self.upstream_responses_path = os.getenv("RAP_UPSTREAM_RESPONSES_PATH", "/v1/responses")
         self.upstream_api_key = os.getenv("RAP_UPSTREAM_API_KEY")
         self.log_dir = os.getenv("RAP_LOG_DIR", "./logs")
         self.log_sensitive_headers = getenv_bool("RAP_LOG_SENSITIVE_HEADERS", False)
@@ -59,8 +62,9 @@ class ProxyServer:
         # Allow an opinionated "proxy namespace" path while still calling the
         # real upstream Responses endpoint.
         in_path = req.url.path.rstrip("/")
-        if in_path in {"/openai/v1/response", "/openai/v1/responses"}:
-            out_path = "/v1/responses"
+        # Opinionated inbound path(s) -> upstream Responses endpoint.
+        if in_path in {"/openai/v1/response", "/openai/v1/responses", "/v1/responses"}:
+            out_path = self.upstream_responses_path
         else:
             out_path = req.url.path
 
