@@ -63,7 +63,16 @@ class ProxyServer:
         # real upstream Responses endpoint.
         in_path = req.url.path.rstrip("/")
         # Opinionated inbound path(s) -> upstream Responses endpoint.
-        if in_path in {"/openai/v1/response", "/openai/v1/responses", "/v1/responses"}:
+        # We accept a few common aliases so you can keep public paths stable
+        # while pointing at different upstream shapes.
+        if in_path in {
+            "/openai/responses",
+            "/openai/response",
+            "/openai/v1/response",
+            "/openai/v1/responses",
+            "/v1/response",
+            "/v1/responses",
+        }:
             out_path = self.upstream_responses_path
         else:
             out_path = req.url.path

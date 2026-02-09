@@ -32,7 +32,8 @@ uv run rap-proxy --host 0.0.0.0 --port 8080
 
 Then point your client at the proxy:
 - Base URL: `http://127.0.0.1:8080`
-- Endpoint: `POST /openai/v1/response` (rewritten upstream; default `/v1/responses`)
+- Endpoint (preferred): `POST /openai/responses` (rewritten upstream; default `/v1/responses`)
+- Endpoint (legacy alias): `POST /openai/v1/response`
 
 If your upstream uses a custom path, set:
 
@@ -84,12 +85,12 @@ uv run rap-analyze --dir ./logs --diff <request_id_1> <request_id_2>
 ```bash
 docker build -f docker/Dockerfile -t response-api-proxy:local .
 
-# Example: upstream is a non-standard route like https://crs.uuid.im/openai/response
-# (set RAP_UPSTREAM_RESPONSES_PATH accordingly).
+# Example: upstream has a non-standard base path (eg /openai) and uses
+# a singular endpoint like /v1/response.
 
 docker run --rm -p 8080:8080 \
-  -e RAP_UPSTREAM_BASE_URL=https://crs.uuid.im \
-  -e RAP_UPSTREAM_RESPONSES_PATH=/openai/response \
+  -e RAP_UPSTREAM_BASE_URL=https://crs.uuid.im/openai \
+  -e RAP_UPSTREAM_RESPONSES_PATH=/v1/response \
   # Option A: set upstream key in proxy env
   -e RAP_UPSTREAM_API_KEY=... \
   -v "$PWD/logs:/app/logs" \
