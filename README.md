@@ -18,7 +18,10 @@ cd projects/response-api-proxy
 uv sync
 
 export RAP_UPSTREAM_BASE_URL="https://api.openai.com"
-export RAP_UPSTREAM_API_KEY="..."   # upstream key
+# Option A (recommended): set upstream key in proxy env
+export RAP_UPSTREAM_API_KEY="..."
+# Option B (transparent pass-through): DO NOT set RAP_UPSTREAM_API_KEY,
+# and let clients send `Authorization: Bearer ...` to the proxy.
 
 # Log dir (default: ./logs)
 export RAP_LOG_DIR="./logs"
@@ -77,7 +80,11 @@ docker build -f docker/Dockerfile -t response-api-proxy:local .
 
 docker run --rm -p 8080:8080 \
   -e RAP_UPSTREAM_BASE_URL=https://api.openai.com \
+  # Option A: set upstream key in proxy env
   -e RAP_UPSTREAM_API_KEY=... \
   -v "$PWD/logs:/app/logs" \
   response-api-proxy:local
+
+# Option B (transparent pass-through): omit RAP_UPSTREAM_API_KEY and let clients
+# send Authorization to the proxy.
 ```
