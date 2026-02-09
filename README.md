@@ -105,6 +105,7 @@ Run a quick call through the proxy:
 
 ```bash
 export RAP_TEST_BASE="http://127.0.0.1:8080"
+# The test script accepts RAP_TEST_API_KEY, OPENAI_API_KEY, or OEPNAI_API_KEY.
 export RAP_TEST_API_KEY="..."  # client key
 uv run python3 scripts/test_call.py --model gpt-4o-mini
 ```

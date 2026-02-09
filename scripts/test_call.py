@@ -44,9 +44,19 @@ def main() -> int:
     ap.add_argument("--max-output", type=int, default=int(os.getenv("RAP_TEST_MAX_OUTPUT", "120")))
     args = ap.parse_args()
 
-    api_key = os.getenv("RAP_TEST_API_KEY")
+    # Prefer the explicit test var, but allow common key envs so you can
+    # `source ~/.openclaw/.env` and run without re-exporting.
+    api_key = (
+        os.getenv("RAP_TEST_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        # Back-compat for a common typo seen in some local env files.
+        or os.getenv("OEPNAI_API_KEY")
+    )
     if not api_key:
-        print("Missing env RAP_TEST_API_KEY (client key to send to proxy)", file=sys.stderr)
+        print(
+            "Missing API key env. Set RAP_TEST_API_KEY, or OPENAI_API_KEY (or OEPNAI_API_KEY).",
+            file=sys.stderr,
+        )
         return 2
 
     url = args.base.rstrip("/") + args.path
