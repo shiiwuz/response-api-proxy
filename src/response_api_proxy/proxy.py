@@ -182,6 +182,12 @@ class ProxyServer:
                         take = min(len(chunk), self.max_capture_bytes - len(capture))
                         capture.extend(chunk[:take])
                     yield chunk
+            except Exception:
+                # Common cases:
+                # - downstream client disconnects (cancels the response)
+                # - upstream closes abruptly mid-stream
+                # Either way, we still want to persist the partial capture.
+                pass
             finally:
                 await r.aclose()
 
