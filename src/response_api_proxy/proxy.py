@@ -56,8 +56,16 @@ class ProxyServer:
             pass
 
     def _upstream_url(self, req: Request) -> str:
+        # Allow an opinionated "proxy namespace" path while still calling the
+        # real upstream Responses endpoint.
+        in_path = req.url.path.rstrip("/")
+        if in_path in {"/openai/v1/response", "/openai/v1/responses"}:
+            out_path = "/v1/responses"
+        else:
+            out_path = req.url.path
+
         q = ("?" + str(req.url.query)) if req.url.query else ""
-        return f"{self.upstream_base_url}{req.url.path}{q}"
+        return f"{self.upstream_base_url}{out_path}{q}"
 
     def _build_upstream_headers(self, req: Request) -> dict[str, str]:
         # Start with inbound headers and then enforce Authorization if configured.
