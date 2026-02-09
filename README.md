@@ -84,8 +84,12 @@ uv run rap-analyze --dir ./logs --diff <request_id_1> <request_id_2>
 ```bash
 docker build -f docker/Dockerfile -t response-api-proxy:local .
 
+# Example: upstream is a non-standard route like https://crs.uuid.im/openai/response
+# (set RAP_UPSTREAM_RESPONSES_PATH accordingly).
+
 docker run --rm -p 8080:8080 \
-  -e RAP_UPSTREAM_BASE_URL=https://api.openai.com \
+  -e RAP_UPSTREAM_BASE_URL=https://crs.uuid.im \
+  -e RAP_UPSTREAM_RESPONSES_PATH=/openai/response \
   # Option A: set upstream key in proxy env
   -e RAP_UPSTREAM_API_KEY=... \
   -v "$PWD/logs:/app/logs" \
@@ -93,4 +97,14 @@ docker run --rm -p 8080:8080 \
 
 # Option B (transparent pass-through): omit RAP_UPSTREAM_API_KEY and let clients
 # send Authorization to the proxy.
+```
+
+### Smoke test
+
+Run a quick call through the proxy:
+
+```bash
+export RAP_TEST_BASE="http://127.0.0.1:8080"
+export RAP_TEST_API_KEY="..."  # client key
+uv run python3 scripts/test_call.py --model gpt-4o-mini
 ```

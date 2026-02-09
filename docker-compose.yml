@@ -8,6 +8,7 @@ services:
       - "8080:8080"
     environment:
       RAP_UPSTREAM_BASE_URL: ${RAP_UPSTREAM_BASE_URL:-https://api.openai.com}
+      RAP_UPSTREAM_RESPONSES_PATH: ${RAP_UPSTREAM_RESPONSES_PATH:-/v1/responses}
       RAP_UPSTREAM_API_KEY: ${RAP_UPSTREAM_API_KEY:-}
       RAP_LOG_DIR: /app/logs
       # Optional:
