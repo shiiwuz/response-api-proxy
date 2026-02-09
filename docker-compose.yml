@@ -1,0 +1,19 @@
+services:
+  response-api-proxy:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: response-api-proxy:local
+    ports:
+      - "8080:8080"
+    environment:
+      RAP_UPSTREAM_BASE_URL: ${RAP_UPSTREAM_BASE_URL:-https://api.openai.com}
+      RAP_UPSTREAM_API_KEY: ${RAP_UPSTREAM_API_KEY:-}
+      RAP_LOG_DIR: /app/logs
+      # Optional:
+      # RAP_LOG_SENSITIVE_HEADERS: "0"
+      # RAP_CAPTURE_RESPONSE_BODY: "1"
+      # RAP_CAPTURE_SSE_TEXT: "1"
+      # RAP_MAX_CAPTURE_BYTES: "5000000"
+    volumes:
+      - ./logs:/app/logs
