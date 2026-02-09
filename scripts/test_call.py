@@ -94,28 +94,55 @@ def main() -> int:
     }
 
     if args.stream:
-        buf = []
+        buf: list[str] = []
         with httpx.Client(timeout=60.0) as client:
             with client.stream("POST", url, headers=headers, json=body) as r:
                 print(f"status: {r.status_code}")
                 ct = r.headers.get("content-type", "")
                 print(f"content-type: {ct}")
 
-                # Print a small sample of SSE data lines.
-                for line in r.iter_lines():
-                    if not line:
-                        continue
-                    if line.startswith("data:"):
+                # Consume the stream until completion markers.
+                # Avoid breaking early, which can trigger noisy protocol errors.
+                max_events = 800
+                try:
+                    for line in r.iter_lines():
+                        if not line:
+                            continue
+                        if not line.startswith("data:"):
+                            continue
+
                         payload = line[5:].strip()
                         buf.append(payload)
-                        if len(buf) >= 30:
+
+                        if payload == "[DONE]":
                             break
+
+                        # Stop if the stream indicates completion.
+                        try:
+                            obj = json.loads(payload)
+                        except Exception:
+                            obj = None
+                        if isinstance(obj, dict):
+                            if obj.get("type") in {"response.completed", "response.complete"}:
+                                break
+                            if isinstance(obj.get("response"), dict) and obj["response"].get("status") in {
+                                "completed",
+                                "complete",
+                            }:
+                                break
+
+                        if len(buf) >= max_events:
+                            break
+                except httpx.RemoteProtocolError:
+                    # Some upstreams terminate chunked SSE streams abruptly.
+                    # We still got enough data to verify forwarding.
+                    pass
 
         print("sse_sample:")
         for x in buf[:10]:
             print(x[:400])
 
-        # Try to parse a usage object from the sample.
+        # Try to parse a usage object from captured events.
         for x in reversed(buf):
             if x == "[DONE]":
                 continue
