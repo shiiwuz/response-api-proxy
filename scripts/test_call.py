@@ -35,6 +35,13 @@ def _pick_text(resp: dict[str, Any]) -> str:
     return ""
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    v = os.getenv(name)
+    if v is None:
+        return default
+    return v.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Call Responses API through response-api-proxy")
     ap.add_argument("--base", default=os.getenv("RAP_TEST_BASE", "http://127.0.0.1:8080"))
@@ -42,6 +49,7 @@ def main() -> int:
     ap.add_argument("--model", default=os.getenv("RAP_TEST_MODEL", "gpt-4o-mini"))
     ap.add_argument("--text", default=os.getenv("RAP_TEST_TEXT", "Say a short hello, then list 3 cache-related keywords."))
     ap.add_argument("--max-output", type=int, default=int(os.getenv("RAP_TEST_MAX_OUTPUT", "120")))
+    ap.add_argument("--stream", action="store_true", default=_env_bool("RAP_TEST_STREAM", False))
     args = ap.parse_args()
 
     # Prefer the explicit test var, but allow common key envs so you can
@@ -82,9 +90,45 @@ def main() -> int:
             }
         ],
         "max_output_tokens": args.max_output,
-        # keep non-streaming for simplest smoke test
-        "stream": False,
+        "stream": bool(args.stream),
     }
+
+    if args.stream:
+        buf = []
+        with httpx.Client(timeout=60.0) as client:
+            with client.stream("POST", url, headers=headers, json=body) as r:
+                print(f"status: {r.status_code}")
+                ct = r.headers.get("content-type", "")
+                print(f"content-type: {ct}")
+
+                # Print a small sample of SSE data lines.
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("data:"):
+                        payload = line[5:].strip()
+                        buf.append(payload)
+                        if len(buf) >= 30:
+                            break
+
+        print("sse_sample:")
+        for x in buf[:10]:
+            print(x[:400])
+
+        # Try to parse a usage object from the sample.
+        for x in reversed(buf):
+            if x == "[DONE]":
+                continue
+            try:
+                obj = json.loads(x)
+            except Exception:
+                continue
+            if isinstance(obj, dict) and isinstance(obj.get("usage"), dict):
+                print("usage:")
+                print(json.dumps(obj["usage"], ensure_ascii=True, indent=2, sort_keys=True))
+                break
+
+        return 0
 
     with httpx.Client(timeout=60.0) as client:
         r = client.post(url, headers=headers, json=body)
