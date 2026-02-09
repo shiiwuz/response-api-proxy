@@ -94,56 +94,72 @@ def main() -> int:
     }
 
     if args.stream:
-        buf: list[str] = []
+        data_events: list[str] = []
+        sample_lines: list[str] = []
+
         with httpx.Client(timeout=60.0) as client:
             with client.stream("POST", url, headers=headers, json=body) as r:
                 print(f"status: {r.status_code}")
                 ct = r.headers.get("content-type", "")
                 print(f"content-type: {ct}")
 
-                # Consume the stream until completion markers.
-                # Avoid breaking early, which can trigger noisy protocol errors.
-                max_events = 800
+                # Consume bytes and parse SSE ourselves (more robust than iter_lines
+                # across proxies).
+                pending = ""
+                max_lines = 4000
+                max_sample_lines = 20
+
                 try:
-                    for line in r.iter_lines():
-                        if not line:
-                            continue
-                        if not line.startswith("data:"):
-                            continue
+                    for chunk in r.iter_bytes():
+                        pending += chunk.decode("utf-8", errors="replace")
+                        while "\n" in pending:
+                            line, pending = pending.split("\n", 1)
+                            line = line.rstrip("\r")
+                            if line and len(sample_lines) < max_sample_lines:
+                                sample_lines.append(line)
 
-                        payload = line[5:].strip()
-                        buf.append(payload)
+                            if not line.startswith("data:"):
+                                continue
 
-                        if payload == "[DONE]":
-                            break
+                            payload = line[5:].strip()
+                            data_events.append(payload)
 
-                        # Stop if the stream indicates completion.
-                        try:
-                            obj = json.loads(payload)
-                        except Exception:
-                            obj = None
-                        if isinstance(obj, dict):
-                            if obj.get("type") in {"response.completed", "response.complete"}:
-                                break
-                            if isinstance(obj.get("response"), dict) and obj["response"].get("status") in {
-                                "completed",
-                                "complete",
-                            }:
+                            if payload == "[DONE]":
+                                pending = ""
                                 break
 
-                        if len(buf) >= max_events:
+                            # Stop if the stream indicates completion.
+                            try:
+                                obj = json.loads(payload)
+                            except Exception:
+                                obj = None
+                            if isinstance(obj, dict):
+                                if obj.get("type") in {"response.completed", "response.complete"}:
+                                    pending = ""
+                                    break
+                                if isinstance(obj.get("response"), dict) and obj["response"].get("status") in {
+                                    "completed",
+                                    "complete",
+                                }:
+                                    pending = ""
+                                    break
+
+                            if len(sample_lines) >= max_lines:
+                                pending = ""
+                                break
+
+                        if not pending and (data_events and (data_events[-1] == "[DONE]")):
                             break
                 except httpx.RemoteProtocolError:
                     # Some upstreams terminate chunked SSE streams abruptly.
-                    # We still got enough data to verify forwarding.
                     pass
 
-        print("sse_sample:")
-        for x in buf[:10]:
-            print(x[:400])
+        print("sse_sample_lines:")
+        for l in sample_lines:
+            print(l[:400])
 
         # Try to parse a usage object from captured events.
-        for x in reversed(buf):
+        for x in reversed(data_events):
             if x == "[DONE]":
                 continue
             try:
